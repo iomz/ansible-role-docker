@@ -1,0 +1,92 @@
+- name: check if docker is installed
+  command: docker --version
+  register: docker_valid
+  changed_when: false
+  ignore_errors: true
+- name: download docker.sh
+  get_url:
+    url: https://get.docker.com
+    dest: /tmp/docker.sh
+    mode: "0700"
+  when: docker_valid.failed
+- name: install docker
+  command: sh /tmp/docker.sh
+  when: docker_valid.failed
+- name: add the github user to the docker group
+  ansible.builtin.user:
+    name: github
+    groups: docker
+    append: yes
+- name: install python3-pip and build-essential
+  ansible.builtin.package:
+    name:
+      - python3-pip
+      - build-essential
+    state: present
+- name: check if cargo is installed
+  ansible.builtin.shell: command -v cargo
+  register: cargo_exists
+  ignore_errors: true
+  changed_when: false
+- name: download rust installer
+  when: cargo_exists is failed
+  ansible.builtin.get_url:
+    url: https://sh.rustup.rs
+    dest: /tmp/sh.rustup.rs
+    mode: "0755"
+    validate_certs: no
+- name: install rust/cargo
+  when: cargo_exists is failed
+  ansible.builtin.command:
+    cmd: ./sh.rustup.rs -y
+    chdir: /tmp
+    creates: /usr/local/bin/cargo
+  environment:
+    CARGO_HOME: "/usr/local"
+- name: install docker python SDK module
+  pip:
+    name:
+      - docker
+      - docker-compose
+    executable: pip3
+- name: create the docker image directory
+  ansible.builtin.file:
+    path: "{{ dockers_dir }}"
+    state: directory
+    mode: "0755"
+- name: create the docker subdirectories
+  file:
+    path: "{{ dockers_dir}}/{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+  when: item.state == 'directory'
+  loop_control:
+    label: "{{ item.path }}"
+  with_filetree:
+    - "{{ inventory_hostname }}{{ dockers_dir }}"
+- name: copy the docker files
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ dockers_dir }}/{{ item.path }}"
+    mode: "{{ item.mode }}"
+  when:
+    - item.state == 'file'
+  loop_control:
+    label: "{{ item.path }}"
+  with_filetree:
+    - "{{ inventory_hostname }}{{ dockers_dir }}"
+- name: build the docker images
+  community.docker.docker_image:
+    build:
+      path: "{{ dockers_dir }}/{{ item.name }}"
+    name: "{{ item.name }}"
+    source: build
+  when:
+    - docker is defined and docker.images is defined and (docker.images|length>0)
+    - item.build
+  with_items: "{{ docker.images }}"
+- name: run each docker project
+  when: docker is defined and docker.images is defined and (docker.images|length>0)
+  community.docker.docker_compose:
+    project_src: "{{ dockers_dir }}/{{ item.name }}"
+  with_items: "{{ docker.images }}"
