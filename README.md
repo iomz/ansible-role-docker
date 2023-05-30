@@ -1,3 +1,5 @@
+NOTICE: I'm archiving this repo in for [bec-galaxy/ansible-collection-docker](https://galaxy.ansible.com/bec/docker)
+
 # ansible-role-docker
 
 Setting up Docker on your host
