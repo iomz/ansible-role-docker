@@ -1,11 +1,14 @@
 # ansible-role-docker
 
-## `files/<host>/opt/dockers/<service-name>`
+Setting up Docker on your host
 
-- this directory requires at least a docker-compose.yml
-- this directory will be copied to the designated host
+## Requirements
 
-## `docker` config in `inventories/host_vars/<host>`
+None.
+
+## Role Variables
+
+Put `docker` variable in `inventories/host_vars/<host>`
 
 - if `build: true` then Ansible will build the image from the `Dockerfile` in the <serivce-name> directory
 
@@ -13,11 +16,32 @@
 docker:
   images:
     - name: <service-name>
-      build: yes/no
+      build: <bool>
 ```
 
-To deploy containers:
+## Optional: directories for docker compose
 
-```bash
-ansible-playbook
+`files/<host>/opt/dockers/<service-name>`
+
+- this directory should contain `docker-compose.yml`
+- this directory will be copied to the designated host
+
+## Example Playbook
+
+```yml
+- hosts: servers
+  roles:
+    - { role: iomz.docker }
 ```
+
+## Dependencies
+
+None.
+
+## License
+
+MIT
+
+## Author Information
+
+[@iomz](https://github.com/iomz) (Iori Mizutani)
